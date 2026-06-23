@@ -19,8 +19,12 @@ use Symfony\Component\Security\Core\Authorization\Voter\Voter;
  * ne peut PAS, par construction, reconstituer un dossier à charge depuis le
  * coaching.
  *
- * La finalité provient d'un attribut de session/jeton posé à l'entrée du
- * contexte (ex. espace coaching authentifié), jamais devinée.
+ * La finalité provient EXCLUSIVEMENT du contexte serveur : elle est posée sur
+ * le jeton par DataPurposeContextListener (seul écrivain), à partir de
+ * DataPurposeResolver (la route). Jamais lue d'un claim JWT ou d'une donnée
+ * cliente — toute valeur cliente est écrasée à chaque requête.
+ *
+ * @extends Voter<string, Deviation|CoachingRecord>
  */
 final class CoachingDataVoter extends Voter
 {

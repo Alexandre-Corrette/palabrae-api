@@ -4,31 +4,44 @@ Revue du squelette et de la base métier fournie. La base est déjà solide
 (fail-closed, CSPRNG, `hash_equals`, pseudonymisation, append-only). Cette note
 liste les points **à traiter avant prod** et les invariants à ne pas casser.
 
+## ✅ Corrigé
+
+### A. La finalité d'accès (`data_purpose`) est posée côté serveur (anti-forge)
+
+> **Risque initial :** si `data_purpose` provenait d'un claim contrôlé par le
+> client (JWT forgé), un attaquant posait `data_purpose = coaching` et lisait la
+> donnée nominative.
+
+- `DataPurposeResolver` = **source de vérité unique**, dérivée du chemin de la
+  route (`/api/coaching/*` → COACHING, `/api/compliance/*` → COMPLIANCE, sinon
+  `null` → refus). Jamais de donnée cliente.
+- `DataPurposeContextListener` = **seul écrivain** de l'attribut (priorité 7) :
+  efface toute valeur préexistante puis pose la finalité serveur. Une valeur
+  forgée est systématiquement écrasée.
+- `CoachingDataVoter::resolvePurpose()` n'accepte plus qu'une **instance d'enum**.
+- `DISCIPLINARY` n'est jamais dérivable ici (contexte isolé).
+- Couvert par `tests/Unit/DataPurposeResolverTest.php`.
+
+> ⚠️ Garde-fou : ne **jamais** mapper un claim JWT vers l'attribut `data_purpose`.
+
+### B. Journal d'intégrité : append sérialisé (plus de race condition)
+
+> **Risque initial :** `IntegrityJournal::append()` lisait la tête (`seq` max)
+> puis insérait sans sérialisation → sous concurrence, collision sur `seq` unique
+> ou fourche de chaîne.
+
+- L'append s'exécute dans une **transaction englobante** ouverte par
+  `wrapInTransaction()`, qui prend d'abord un **verrou consultatif
+  transactionnel** PostgreSQL : `SELECT pg_advisory_xact_lock(<clé>)`.
+- Les append concurrents attendent puis lisent une tête à jour (READ COMMITTED) ;
+  le verrou est libéré automatiquement au commit/rollback. La chaîne ne peut plus
+  fourcher ni dupliquer un `seq`.
+- ⚠️ Spécifique PostgreSQL. Sur un autre SGBD, basculer sur un consommateur
+  Messenger **unique** (single-writer) pour conserver la sérialisation.
+
 ## 🔴 À traiter en priorité
 
-### 1. La finalité d'accès (`data_purpose`) ne doit JAMAIS venir d'un claim JWT client
-`CoachingDataVoter` lit `data_purpose` dans les attributs du token. Si cette
-valeur provient d'un claim que le client contrôle (JWT forgé côté front), un
-attaquant pose `data_purpose = coaching` et lit la donnée nominative.
-
-**Exigence :** la finalité doit être **dérivée côté serveur** du contexte
-authentifié (quel firewall / quel endpoint « espace coaching »), via un
-listener qui pose l'attribut sur le token. Ne jamais la mapper depuis le payload
-JWT. À défaut, le mur RGPD est contournable.
-
-### 2. Journal d'intégrité : sérialiser les écritures (race condition de chaînage)
-`IntegrityJournal::append()` lit la tête (`seq` max), calcule `seq+1` et
-`prevHash`, puis flush. Sous concurrence (PHP-FPM, plusieurs workers), deux
-appels lisent la même tête → soit collision sur `seq` unique (un flush échoue,
-non géré/réessayé), soit deux maillons pointant le même `prevHash` (fourche de
-chaîne).
-
-**Exigence :** sérialiser l'append — verrou applicatif PostgreSQL
-(`SELECT pg_advisory_xact_lock(...)` au début d'une transaction englobante), ou
-écriture via un consommateur Messenger **unique**. Sans cela, l'intégrité du
-journal n'est pas garantie en charge.
-
-### 3. `SealStore` en mémoire : inadapté au multi-process ET à la prod
+### 1. `SealStore` en mémoire : inadapté au multi-process ET à la prod
 `InMemorySealStore` garde la graine dans la mémoire d'un process. En PHP-FPM,
 le worker qui `seal()` n'est pas celui qui `reveal()` → graine introuvable,
 `reveal()` lève. Et la graine en mémoire applicative est, par principe, hors
@@ -38,7 +51,7 @@ d'un coffre audité.
 Secrets Manager) avec chiffrement au repos, accès audité et rotation. La base
 applicative ne doit contenir que le `commitment`, jamais la graine.
 
-### 4. Boîte noire : interdire UPDATE/DELETE au niveau base
+### 2. Boîte noire : interdire UPDATE/DELETE au niveau base
 `IntegrityLogEntry` est append-only côté code (aucun setter), mais l'ORM
 n'empêche pas un `UPDATE`/`DELETE` direct. L'append-only doit être **renforcé
 en base** :
@@ -48,7 +61,7 @@ REVOKE UPDATE, DELETE ON integrity_log FROM palabrae_app;
 -- idéalement : trigger BEFORE UPDATE/DELETE qui lève une exception.
 ```
 
-### 5. Ancrage externe réel
+### 3. Ancrage externe réel
 `LoggerAnchorSink` écrit dans un log **sous contrôle de l'exploitant** — ce
 contre quoi l'ancrage est censé protéger. Brancher un puits hors de portée :
 horodatage RFC 3161, e-mail signé à un auditeur, ou OpenTimestamps. Sinon, la

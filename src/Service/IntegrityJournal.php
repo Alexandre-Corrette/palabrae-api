@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Entity\IntegrityLogEntry;
 use App\Integrity\AnchorSink;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -17,6 +18,13 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 final class IntegrityJournal
 {
+    /**
+     * Clé du verrou consultatif PostgreSQL pour la section critique d'append.
+     * Valeur arbitraire mais STABLE : tous les processus doivent partager la
+     * même clé pour se sérialiser entre eux. ('PLBR' = 0x504C4252.)
+     */
+    private const APPEND_LOCK_KEY = 0x504C4252;
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly AnchorSink $anchorSink,
@@ -27,20 +35,42 @@ final class IntegrityJournal
      * Ajoute un maillon. Le payload est canonicalisé (clés triées) avant hash
      * pour que la même donnée produise toujours la même empreinte.
      *
+     * CONCURRENCE : la lecture de la tête (seq max) puis l'insertion forment une
+     * section critique. Sans sérialisation, deux append simultanés (PHP-FPM,
+     * workers Messenger) liraient la même tête → collision sur `seq` unique ou
+     * fourche de chaîne. On prend donc un verrou consultatif TRANSACTIONNEL
+     * (pg_advisory_xact_lock) au début d'une transaction englobante : les autres
+     * append attendent, et le verrou est libéré automatiquement à la fin de la
+     * transaction (commit ou rollback). Spécifique PostgreSQL.
+     *
      * @param array<string, mixed> $payload
      */
     public function append(string $type, array $payload): IntegrityLogEntry
     {
-        $repo = $this->em->getRepository(IntegrityLogEntry::class);
-        $last = $repo->findOneBy([], ['seq' => 'DESC']);
+        $entry = $this->em->wrapInTransaction(function () use ($type, $payload): IntegrityLogEntry {
+            // Sérialise tous les append entre eux. Bloque jusqu'à obtention.
+            $this->em->getConnection()->executeStatement(
+                'SELECT pg_advisory_xact_lock(?)',
+                [self::APPEND_LOCK_KEY],
+                [ParameterType::INTEGER],
+            );
 
-        $seq = $last ? $last->getSeq() + 1 : 1;
-        $prevHash = $last ? $last->getEntryHash() : IntegrityLogEntry::GENESIS;
-        $payloadHash = hash('sha256', $this->canonical($payload));
+            // Lecture de la tête APRÈS acquisition du verrou : en READ COMMITTED,
+            // on voit le maillon de l'append concurrent qui vient de committer.
+            $last = $this->em->getRepository(IntegrityLogEntry::class)->findOneBy([], ['seq' => 'DESC']);
 
-        $entry = new IntegrityLogEntry($seq, $type, $payloadHash, $prevHash);
-        $this->em->persist($entry);
-        $this->em->flush();
+            $seq = $last ? $last->getSeq() + 1 : 1;
+            $prevHash = $last ? $last->getEntryHash() : IntegrityLogEntry::GENESIS;
+            $payloadHash = hash('sha256', $this->canonical($payload));
+
+            $entry = new IntegrityLogEntry($seq, $type, $payloadHash, $prevHash);
+            $this->em->persist($entry);
+            $this->em->flush();
+
+            return $entry;
+        });
+
+        \assert($entry instanceof IntegrityLogEntry);
 
         return $entry;
     }
