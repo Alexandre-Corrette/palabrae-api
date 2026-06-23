@@ -38,6 +38,7 @@ final class ComplianceSummary
         public readonly Severity $severity,
         public readonly int $deviationCount,
         public readonly int $unresolvedCount,
+        public readonly int $conformCount,
     ) {
     }
 }
