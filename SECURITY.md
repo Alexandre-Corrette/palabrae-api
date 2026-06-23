@@ -53,17 +53,28 @@ liste les points **à traiter avant prod** et les invariants à ne pas casser.
 - ⚠️ PostgreSQL uniquement. Durcissement complémentaire : faire tourner l'app
   sous un rôle **non propriétaire** + `REVOKE UPDATE, DELETE ON integrity_log`.
 
+### D. `SealStore` persistant multi-process (coffre dédié hors base)
+
+> **Risque initial :** `InMemorySealStore` perdait la graine entre deux process
+> (PHP-FPM, commandes) → `reveal()` échouait ; et une graine en mémoire
+> applicative n'est pas dans un coffre audité.
+
+- `CacheSealStore` : coffre persistant adossé à un **pool de cache dédié**
+  (`seal_store.pool`), isolé du cache applicatif ET de la base. `seal()` et
+  `reveal()` peuvent tomber dans des process différents.
+- Invariant préservé : la graine ne touche jamais la base applicative.
+- Binding DI basculé (`config/services.yaml`) ; `InMemorySealStore` conservé
+  pour les tests.
+- ⚠️ **Reste pour la prod** (voir ci-dessous) : remplacer le pool filesystem par
+  un secret manager (chiffrement au repos, accès audité, rotation).
+
 ## 🔴 À traiter en priorité
 
-### 1. `SealStore` en mémoire : inadapté au multi-process ET à la prod
-`InMemorySealStore` garde la graine dans la mémoire d'un process. En PHP-FPM,
-le worker qui `seal()` n'est pas celui qui `reveal()` → graine introuvable,
-`reveal()` lève. Et la graine en mémoire applicative est, par principe, hors
-d'un coffre audité.
-
-**Exigence :** implémenter `SealStore` sur un **secret manager** (Vault / KMS /
-Secrets Manager) avec chiffrement au repos, accès audité et rotation. La base
-applicative ne doit contenir que le `commitment`, jamais la graine.
+### 1. `SealStore` prod : adapter secret manager
+Le coffre dev (`CacheSealStore` + pool filesystem) corrige le multi-process mais
+n'offre pas chiffrement au repos / audit / rotation, et un `cache:clear` agressif
+pourrait l'effacer. **Exigence prod :** pointer `seal_store.pool` (ou une
+nouvelle implémentation de `SealStore`) vers Vault / KMS / Secrets Manager.
 
 ### 2. Ancrage externe réel
 `LoggerAnchorSink` écrit dans un log **sous contrôle de l'exploitant** — ce

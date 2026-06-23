@@ -20,9 +20,14 @@ services:
     # prédictible → anti-triche cassé).
     App\Integrity\RandomnessSource: '@App\Integrity\CsprngRandomnessSource'
 
-    # Coffre de graines. MVP en mémoire. En prod : brancher une implémentation
-    # adossée à un secret manager (Vault/KMS/Secrets Manager).
-    App\Integrity\SealStore: '@App\Integrity\InMemorySealStore'
+    # Coffre de graines PERSISTANT (pool de cache dédié, hors base applicative).
+    # Survit entre process (PHP-FPM / commandes), donc seal() et reveal() peuvent
+    # tomber dans des process différents. En prod : pointer seal_store.pool vers
+    # Redis/secret manager (cf. CacheSealStore / GH-196).
+    App\Integrity\CacheSealStore:
+        arguments:
+            $sealStorePool: '@seal_store.pool'
+    App\Integrity\SealStore: '@App\Integrity\CacheSealStore'
 
     # Ancrage externe de la tête de chaîne. MVP = log. En prod : RFC 3161 /
     # auditeur externe / OpenTimestamps.

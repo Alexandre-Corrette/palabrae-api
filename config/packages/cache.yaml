@@ -2,3 +2,9 @@ framework:
     cache:
         app: cache.adapter.filesystem
         system: cache.adapter.system
+        pools:
+            # Pool DÉDIÉ aux graines de contrôle surprise — isolé du cache applicatif
+            # ET de la base. En dev : filesystem. En prod : remplacer l'adapter par
+            # Redis/secret manager (cf. CacheSealStore / GH-196).
+            seal_store.pool:
+                adapter: cache.adapter.filesystem
