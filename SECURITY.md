@@ -39,6 +39,20 @@ liste les points **à traiter avant prod** et les invariants à ne pas casser.
 - ⚠️ Spécifique PostgreSQL. Sur un autre SGBD, basculer sur un consommateur
   Messenger **unique** (single-writer) pour conserver la sérialisation.
 
+### C. Boîte noire : append-only renforcé en base (trigger PL/pgSQL)
+
+> **Risque initial :** `IntegrityLogEntry` est append-only côté code (aucun
+> setter), mais l'ORM n'empêche pas un `UPDATE`/`DELETE` SQL direct.
+
+- Migration `Version20260623160000` : trigger `trg_integrity_log_append_only`
+  (`BEFORE UPDATE OR DELETE`) qui lève une exception — le journal est append-only
+  au niveau du SGBD, pas seulement en code.
+- Choix d'un **trigger** plutôt qu'un `REVOKE` : l'app se connecte comme
+  propriétaire de la table, lequel conserve ses privilèges malgré un REVOKE ; le
+  trigger s'applique à toutes les sessions.
+- ⚠️ PostgreSQL uniquement. Durcissement complémentaire : faire tourner l'app
+  sous un rôle **non propriétaire** + `REVOKE UPDATE, DELETE ON integrity_log`.
+
 ## 🔴 À traiter en priorité
 
 ### 1. `SealStore` en mémoire : inadapté au multi-process ET à la prod
@@ -51,17 +65,7 @@ d'un coffre audité.
 Secrets Manager) avec chiffrement au repos, accès audité et rotation. La base
 applicative ne doit contenir que le `commitment`, jamais la graine.
 
-### 2. Boîte noire : interdire UPDATE/DELETE au niveau base
-`IntegrityLogEntry` est append-only côté code (aucun setter), mais l'ORM
-n'empêche pas un `UPDATE`/`DELETE` direct. L'append-only doit être **renforcé
-en base** :
-
-```sql
-REVOKE UPDATE, DELETE ON integrity_log FROM palabrae_app;
--- idéalement : trigger BEFORE UPDATE/DELETE qui lève une exception.
-```
-
-### 3. Ancrage externe réel
+### 2. Ancrage externe réel
 `LoggerAnchorSink` écrit dans un log **sous contrôle de l'exploitant** — ce
 contre quoi l'ancrage est censé protéger. Brancher un puits hors de portée :
 horodatage RFC 3161, e-mail signé à un auditeur, ou OpenTimestamps. Sinon, la
