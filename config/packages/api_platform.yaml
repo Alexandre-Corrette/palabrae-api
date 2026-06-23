@@ -1,0 +1,31 @@
+api_platform:
+    title: Palabrae API
+    description: >
+        Moteur d'intégrité procédurale. La machine prévient, rappelle, propose —
+        la décision reste à l'humain.
+    version: 0.1.0
+    # On scanne les entités ET les ressources API dédiées (DTO agrégés).
+    mapping:
+        paths:
+            - '%kernel.project_dir%/src/Entity'
+            - '%kernel.project_dir%/src/ApiResource'
+    formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+    docs_formats:
+        jsonld: ['application/ld+json']
+        json: ['application/json']
+        html: ['text/html']
+    defaults:
+        stateless: true
+        cache_headers:
+            vary: ['Content-Type', 'Authorization', 'Origin']
+        # Pagination bornée : on ne laisse pas un client demander 10 000 lignes.
+        pagination_items_per_page: 25
+        pagination_maximum_items_per_page: 100
+        pagination_client_items_per_page: true
+    # Erreurs propres, sans fuite de stacktrace en prod.
+    show_webby: false
+    exception_to_status:
+        Symfony\Component\Serializer\Exception\InvalidArgumentException: 400
+        ApiPlatform\Metadata\Exception\InvalidArgumentException: 400

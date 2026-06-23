@@ -1,0 +1,29 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+
+    # ——— Câblage des abstractions d'intégrité ———
+    # Ces alias rendent explicites les choix de sécurité. Pour durcir en prod,
+    # on remplace l'implémentation ICI, sans toucher au code métier.
+
+    # Aléa : CSPRNG. NE JAMAIS pointer vers un PRNG seedé (timing redeviendrait
+    # prédictible → anti-triche cassé).
+    App\Integrity\RandomnessSource: '@App\Integrity\CsprngRandomnessSource'
+
+    # Coffre de graines. MVP en mémoire. En prod : brancher une implémentation
+    # adossée à un secret manager (Vault/KMS/Secrets Manager).
+    App\Integrity\SealStore: '@App\Integrity\InMemorySealStore'
+
+    # Ancrage externe de la tête de chaîne. MVP = log. En prod : RFC 3161 /
+    # auditeur externe / OpenTimestamps.
+    App\Integrity\AnchorSink: '@App\Integrity\LoggerAnchorSink'

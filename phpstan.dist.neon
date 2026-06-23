@@ -1,0 +1,7 @@
+parameters:
+    level: 6
+    paths:
+        - src
+        - tests
+    # Doctrine/API Platform : à étendre avec phpstan-doctrine + phpstan-symfony
+    # quand l'environnement le permet.

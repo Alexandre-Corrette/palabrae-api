@@ -1,0 +1,59 @@
+security:
+    # Algo de hash moderne, résistant au bruteforce. Jamais de hash maison.
+    password_hashers:
+        Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+            algorithm: auto
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        # Obtention du token : POST /api/auth (email + password)
+        login:
+            pattern: ^/api/auth$
+            stateless: true
+            json_login:
+                check_path: /api/auth
+                username_path: email
+                password_path: password
+                success_handler: lexik_jwt_authentication.handler.authentication_success
+                failure_handler: lexik_jwt_authentication.handler.authentication_failure
+
+        api:
+            pattern: ^/api
+            stateless: true
+            provider: app_user_provider
+            jwt: ~
+
+        main:
+            lazy: true
+            provider: app_user_provider
+
+    # Hiérarchie des rôles. RESPONSABLE n'hérite PAS d'OPERATEUR :
+    # ce sont deux contextes distincts (cf. mur coaching/disciplinaire).
+    role_hierarchy:
+        ROLE_OPERATEUR: ROLE_USER
+        ROLE_RESPONSABLE: ROLE_USER
+        ROLE_ADMIN: [ROLE_RESPONSABLE, ROLE_OPERATEUR]
+
+    access_control:
+        - { path: ^/api/auth, roles: PUBLIC_ACCESS }
+        - { path: ^/api/docs, roles: PUBLIC_ACCESS }
+        - { path: ^/api, roles: ROLE_USER }
+
+when@test:
+    security:
+        password_hashers:
+            # Hash rapide en test uniquement, pour ne pas ralentir la suite.
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10

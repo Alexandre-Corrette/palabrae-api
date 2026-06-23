@@ -1,0 +1,26 @@
+###> symfony/framework-bundle ###
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+
+###> lexik/jwt-authentication-bundle ###
+# Les clés JWT ne doivent JAMAIS être committées.
+/config/jwt/*.pem
+###< lexik/jwt-authentication-bundle ###
+
+###> phpunit/phpunit ###
+/.phpunit.cache/
+/phpunit.xml
+###< phpunit/phpunit ###
+
+.idea/
+.vscode/
+
+###> phpstan/phpstan ###
+phpstan.neon
+###< phpstan/phpstan ###
