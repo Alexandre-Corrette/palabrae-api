@@ -44,33 +44,35 @@ final class AppFixtures extends Fixture
         $manager->persist($procedure);
 
         // ——— Points de contrôle + micro-leçons (verticale HACCP) ———
+        // Dernier booléen : ce point exige une preuve photo (prise en direct) ?
         $points = [
             ['CCP-ALLERG-03', 'Étiquetage allergènes du jour', Severity::CRITICAL,
                 "Une erreur d'allergène peut être mortelle. 14 allergènes sont à déclaration obligatoire, et en cantine le public est captif.",
-                "Compare la fiche du jour aux composants réels du plat. Affiche-la. Dans le doute, ne sers pas le plat concerné."],
+                "Compare la fiche du jour aux composants réels du plat. Affiche-la. Dans le doute, ne sers pas le plat concerné.", true],
             ['CCP-FROID-01', 'Température chambre froide', Severity::ACUTE,
                 "Au-dessus de 4 °C, Listeria et salmonelles se multiplient vite. Le public en collectivité est fragile.",
-                "Relève la température. Si > 4 °C : isole les denrées sensibles, préviens le responsable, ne sers pas."],
+                "Relève la température. Si > 4 °C : isole les denrées sensibles, préviens le responsable, ne sers pas.", true],
             ['CCP-CUISSON-04', 'Température à cœur (cuisson)', Severity::ACUTE,
                 "Une cuisson à cœur insuffisante laisse survivre les pathogènes, même si l'extérieur paraît cuit.",
-                "Sonde à cœur. Atteins la cible (63–75 °C selon le plat). Re-cuis si le seuil n'est pas atteint."],
+                "Sonde à cœur. Atteins la cible (63–75 °C selon le plat). Re-cuis si le seuil n'est pas atteint.", true],
             ['CCP-RECEP-02', 'Contrôle à réception', Severity::SANITARY,
                 "Une rupture de la chaîne du froid à la livraison contamine en amont, avant même la cuisine.",
-                "Contrôle température et aspect à l'arrivée. Refuse et note la livraison si elle n'est pas conforme."],
+                "Contrôle température et aspect à l'arrivée. Refuse et note la livraison si elle n'est pas conforme.", true],
             ['CCP-HUILE-05', 'Contrôle huile de friture', Severity::SANITARY,
                 "Une huile dégradée produit des composés nocifs et altère le goût.",
-                "Contrôle visuel et test. Filtre ou change l'huile au-delà du seuil."],
+                "Contrôle visuel et test. Filtre ou change l'huile au-delà du seuil.", true],
             ['PROP-SALLE-01', 'Propreté des sanitaires', Severity::COSMETIC,
                 "Des sanitaires sales rebutent le convive et signalent un relâchement de l'hygiène.",
-                "Nettoie et horodate ton passage."],
+                "Nettoie et horodate ton passage.", false],
         ];
 
-        foreach ($points as [$code, $label, $severity, $why, $how]) {
+        foreach ($points as [$code, $label, $severity, $why, $how, $requiresPhoto]) {
             $lesson = new MicroLesson($label, $why, $how);
             $manager->persist($lesson);
 
             $cp = new ControlPoint($procedure, $code, $label, $severity);
             $cp->attachLesson($lesson);
+            $cp->setRequiresPhoto($requiresPhoto);
             $manager->persist($cp);
         }
 

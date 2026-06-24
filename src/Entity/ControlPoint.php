@@ -44,6 +44,14 @@ class ControlPoint
     #[ORM\JoinColumn(nullable: true)]
     private ?MicroLesson $lesson = null;
 
+    /**
+     * Ce point exige-t-il une PREUVE PHOTO (prise en direct) pour être clôturé ?
+     * Ex. température frigo, huile de friture, étiquette du jour. La validation
+     * est bloquée tant que la photo n'est pas fournie.
+     */
+    #[ORM\Column]
+    private bool $requiresPhoto = false;
+
     public function __construct(Investigation $procedure, string $code, string $label, Severity $severity)
     {
         $this->procedure = $procedure;
@@ -54,10 +62,13 @@ class ControlPoint
 
     public function attachLesson(MicroLesson $lesson): void { $this->lesson = $lesson; }
 
+    public function setRequiresPhoto(bool $requiresPhoto): void { $this->requiresPhoto = $requiresPhoto; }
+
     public function getId(): ?int { return $this->id; }
     public function getProcedure(): Investigation { return $this->procedure; }
     public function getCode(): string { return $this->code; }
     public function getLabel(): string { return $this->label; }
     public function getSeverity(): Severity { return $this->severity; }
     public function getLesson(): ?MicroLesson { return $this->lesson; }
+    public function requiresPhoto(): bool { return $this->requiresPhoto; }
 }

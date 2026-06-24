@@ -59,6 +59,7 @@ final class ControlPointCollectionProvider implements ProviderInterface
                         estimatedSeconds: $lesson->getEstimatedSeconds(),
                     ),
                     procedureReference: $cp->getProcedure()->getReference(),
+                    requiresPhoto: $cp->requiresPhoto(),
                 );
             },
             $points,

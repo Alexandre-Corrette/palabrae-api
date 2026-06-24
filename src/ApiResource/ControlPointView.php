@@ -37,6 +37,8 @@ final class ControlPointView
         public readonly string $severityLabel,
         public readonly ?LessonView $lesson,
         public readonly string $procedureReference,
+        /** Ce point exige une preuve photo (prise en direct) pour être clôturé. */
+        public readonly bool $requiresPhoto,
     ) {
     }
 }
