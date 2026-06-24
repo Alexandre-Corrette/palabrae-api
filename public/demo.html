@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palabrae</title>
+<style>
+  :root{
+    --steel:#E4E7EA; --surface:#F7F8F9; --card:#FFFFFF; --ink:#191C20; --muted:#6B7178;
+    --hair:#DBDFE3; --teal:#0E7C66; --tealTint:#E1F0EB;
+    --s1:#5B6B7A; --s2:#B5710A; --s3:#CF451E; --s4:#A4161A;
+    --shadow:0 1px 2px rgba(20,25,30,.06), 0 8px 24px rgba(20,25,30,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--steel);color:var(--ink);
+    font:15px/1.5 -apple-system,"Segoe UI",Roboto,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  header{background:var(--card);border-bottom:1px solid var(--hair);padding:14px 22px;display:flex;align-items:center;gap:12px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;letter-spacing:-.02em}
+  .logo .mark{width:26px;height:26px;border-radius:7px;background:var(--ink);display:grid;place-items:center;color:#fff;font-size:13px}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--hair);border-radius:999px;padding:3px 9px}
+  .who{margin-left:auto;color:var(--muted);font-size:13px}
+  main{max-width:760px;margin:22px auto;padding:0 18px}
+  .card{background:var(--card);border:1px solid var(--hair);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 12px;font-weight:700}
+  .sub{color:var(--muted);font-size:13px;margin:-6px 0 12px}
+  button{font:inherit;font-weight:600;background:var(--card);color:var(--ink);border:1px solid var(--hair);
+    border-radius:10px;padding:9px 14px;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--ink)}
+  button.primary{background:var(--teal);border-color:var(--teal);color:#fff}
+  button.primary:hover{filter:brightness(1.05)}
+  button.ghost{background:var(--tealTint);border-color:transparent;color:var(--teal)}
+  button.warn{background:#fff;border-color:var(--s3);color:var(--s3)}
+  input,select{font:inherit;background:#fff;color:var(--ink);border:1px solid var(--hair);border-radius:10px;padding:9px 11px}
+  label{color:var(--muted);font-size:13px;margin-right:6px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .cp{border:1px solid var(--hair);border-radius:12px;padding:13px 14px;margin:10px 0;background:#fff}
+  .cp .top{display:flex;align-items:center;gap:10px}
+  .cp .label{font-weight:700}
+  .cp .code{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums}
+  .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto}
+  .pill{display:inline-block;border:1px solid var(--hair);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted)}
+  .hidden{display:none}
+  table{border-collapse:collapse;width:100%}
+  th,td{text-align:left;border-bottom:1px solid var(--hair);padding:9px 8px;font-size:14px}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  td.num{font-variant-numeric:tabular-nums;text-align:right}
+  .verdict{border-radius:12px;padding:16px;margin-top:12px;color:#fff}
+  .verdict .vh{font-size:12px;opacity:.85}
+  .verdict .vt{font-size:26px;font-weight:900;letter-spacing:-.03em;text-transform:uppercase;margin:2px 0 8px}
+  .lesson{margin-top:12px;background:rgba(255,255,255,.14);border-radius:10px;padding:11px 12px;font-size:14px}
+  .lesson b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.85;margin-bottom:2px}
+  .ok{background:var(--tealTint);color:#0B5C4C;border-radius:12px;padding:13px 14px;margin-top:12px;font-weight:600}
+  .tiles{display:flex;gap:10px;flex-wrap:wrap}
+  .tile{flex:1 1 120px;border:1px solid var(--hair);border-radius:12px;padding:13px;background:#fff}
+  .tile .n{font-size:26px;font-weight:800;line-height:1;letter-spacing:-.02em}
+  .tile .l{font-size:12px;color:var(--muted);margin-top:5px}
+  #err{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#2A2F35;color:#fff;
+    padding:11px 16px;border-radius:10px;box-shadow:var(--shadow);font-size:14px;display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="mark">◆</span> Palabrae</div>
+  <span class="tag">démonstration</span>
+  <span id="who" class="who"></span>
+</header>
+
+<main>
+  <div class="card" id="auth">
+    <h2>Accès</h2>
+    <div class="row">
+      <select id="role">
+        <option value="op">Opérateur</option>
+        <option value="mgr">Responsable</option>
+      </select>
+      <input id="email" size="24" value="operateur@demo.test">
+      <input id="pass" size="16" value="demo-operateur" type="password">
+      <button class="primary" onclick="login()">Se connecter</button>
+      <button onclick="logout()">Quitter</button>
+    </div>
+  </div>
+
+  <div class="card hidden" id="op">
+    <h2>Exercice du jour</h2>
+    <div class="row">
+      <label>Référence</label><input id="winRef" size="32">
+      <label>Point</label><input id="winCp" size="15" value="CCP-FROID-01">
+      <button class="primary" onclick="honor()">Réaliser l'exercice</button>
+    </div>
+    <div id="verdict"></div>
+
+    <h2 style="margin-top:18px">Points contrôlables</h2>
+    <div class="row"><button onclick="loadChecklist()">Afficher les points</button></div>
+    <div id="checklist"></div>
+  </div>
+
+  <div class="card hidden" id="mgr">
+    <h2>Tableau de bord</h2>
+    <div class="row">
+      <button class="primary" onclick="loadCompliance()">Conformité du service</button>
+      <button onclick="loadSpot()">Contrôles programmés</button>
+    </div>
+    <div id="compliance"></div>
+    <div id="spot"></div>
+  </div>
+</main>
+
+<div id="err"></div>
+
+<script>
+let token = null;
+const points = {};
+
+function toast(msg){ const e=document.getElementById('err'); e.textContent=msg; e.style.display='block'; setTimeout(()=>e.style.display='none',3200); }
+function todayWin(){ return `SITE-LEOLAGRANGE:${new Date().toISOString().slice(0,10)}:midi`; }
+document.getElementById('winRef').value = todayWin();
+
+document.getElementById('role').addEventListener('change', e => {
+  const op = e.target.value === 'op';
+  document.getElementById('email').value = op ? 'operateur@demo.test' : 'responsable@demo.test';
+  document.getElementById('pass').value  = op ? 'demo-operateur' : 'demo-responsable';
+});
+
+async function api(method, path, body){
+  const headers = { 'Accept':'application/json' };
+  if (body) headers['Content-Type']='application/json';
+  if (token) headers['Authorization']='Bearer '+token;
+  const res = await fetch(path, { method, headers, body: body?JSON.stringify(body):undefined });
+  const txt = await res.text();
+  let data; try { data = txt?JSON.parse(txt):null; } catch { data = txt; }
+  if (!res.ok) throw Object.assign(new Error('HTTP '+res.status), {status:res.status, data});
+  return data;
+}
+
+async function login(){
+  const email=document.getElementById('email').value, password=document.getElementById('pass').value;
+  try {
+    token = (await api('POST','/api/auth',{email,password})).token;
+    const op = document.getElementById('role').value==='op';
+    document.getElementById('who').textContent = email;
+    document.getElementById('op').classList.toggle('hidden', !op);
+    document.getElementById('mgr').classList.toggle('hidden', op);
+  } catch(e){ toast('Connexion refusée — '+(e.status ? 'HTTP '+e.status : (e.message||'réseau'))); }
+}
+function logout(){ token=null; document.getElementById('who').textContent='';
+  document.getElementById('op').classList.add('hidden'); document.getElementById('mgr').classList.add('hidden'); }
+
+async function loadChecklist(){
+  try {
+    const pts = await api('GET','/api/control-points');
+    const c = document.getElementById('checklist'); c.innerHTML='';
+    pts.forEach(p => {
+      points[p.code]=p;
+      const div=document.createElement('div'); div.className='cp';
+      div.innerHTML = `<div class="top"><span class="dot" style="background:${tone(p.severity)}"></span>
+        <span class="label">${esc(p.label)}</span><span class="pill">${esc(p.severityLabel)}</span></div>
+        <div class="code">${esc(p.code)}</div>`;
+      const row=document.createElement('div'); row.className='row'; row.style.marginTop='10px';
+      const ok=document.createElement('button'); ok.textContent='Conforme'; ok.className='ghost'; ok.onclick=()=>markConform(p.code);
+      const ko=document.createElement('button'); ko.textContent='Signaler un écart'; ko.className='warn'; ko.onclick=()=>report(p.code);
+      row.append(ok,ko); div.append(row); c.append(div);
+    });
+  } catch(e){ toast('Chargement impossible'); }
+}
+
+async function markConform(code){
+  try { await api('POST','/api/inspections',{controlPointCode:code});
+    document.getElementById('verdict').innerHTML = `<div class="ok">✔ ${esc(points[code]?.label||code)} — validé conforme.</div>`;
+  } catch(e){ toast('Action impossible'); }
+}
+
+async function report(code){
+  try {
+    const r = await api('POST','/api/deviations',{controlPointCode:code, note:'signalé en service'});
+    const p = points[code]||{}; const L = p.lesson;
+    const lesson = L ? `<div class="lesson"><b>Pourquoi</b>${esc(L.why)}</div>
+                        <div class="lesson"><b>Le geste</b>${esc(L.how)}</div>` : '';
+    document.getElementById('verdict').innerHTML = `<div class="verdict" style="background:${tone(r.severity)}">
+      <div class="vh">${esc(code)}</div>
+      <div class="vt">${esc(verdictLabel(r.severity))}</div>
+      <div>${actionsText(r.actions)}</div>${lesson}</div>`;
+  } catch(e){ toast('Signalement impossible'); }
+}
+
+async function honor(){
+  const windowRef=document.getElementById('winRef').value, controlPointCode=document.getElementById('winCp').value;
+  try { const r=await api('POST','/api/spot-checks/honor',{windowRef,controlPointCode});
+    document.getElementById('verdict').innerHTML = `<div class="ok">✔ Contrôle réalisé et enregistré (poste ${r.ordinal+1}).</div>`;
+  } catch(e){ toast(e.data&&e.data.detail ? e.data.detail : 'Aucun contrôle en attente'); }
+}
+
+async function loadCompliance(){
+  try {
+    const rows = await api('GET','/api/compliance/summary');
+    let h='<h2 style="margin-top:16px">Conformité par point</h2><table><tr><th>Point</th><th>Gravité</th><th class="num">Conformes</th><th class="num">Écarts</th><th class="num">À traiter</th></tr>';
+    rows.forEach(r=> h+=`<tr><td>${esc(r.controlPointLabel)}</td><td><span class="pill">${esc(sevName(r.severity))}</span></td>
+      <td class="num">${r.conformCount}</td><td class="num">${r.deviationCount}</td><td class="num">${r.unresolvedCount}</td></tr>`);
+    document.getElementById('compliance').innerHTML = h+'</table>';
+  } catch(e){ toast('Chargement impossible'); }
+}
+
+async function loadSpot(){
+  try {
+    const s = (await api('GET','/api/spot-checks/summary'))[0]||{};
+    document.getElementById('spot').innerHTML = `<h2 style="margin-top:16px">Contrôles programmés</h2>
+      <div class="tiles">
+        <div class="tile"><div class="n">${s.controlsHonored}</div><div class="l">Réalisés</div></div>
+        <div class="tile"><div class="n">${s.controlsMissed}</div><div class="l">Manqués</div></div>
+        <div class="tile"><div class="n">${s.plansRevealed}</div><div class="l">Créneaux clôturés</div></div>
+        <div class="tile"><div class="n">${s.iotDetections}</div><div class="l">Détections capteur</div></div>
+      </div>`;
+  } catch(e){ toast('Chargement impossible'); }
+}
+
+function tone(v){ return ['','#5B6B7A','#B5710A','#CF451E','#A4161A'][severityRank(v)]; }
+function sevName(v){ return ['','Cosmétique','Sanitaire','Aiguë','Critique'][severityRank(v)]; }
+function verdictLabel(v){ return ['','À corriger','Non-conforme','Arrêt','Arrêt critique'][severityRank(v)]; }
+function actionsText(a){
+  const map={NUDGE_ONLY:'Simple rappel',NOTIFY_MANAGER_AGGREGATED:'Remontée au responsable',
+    HARD_STOP:'Lot bloqué',IMMUTABLE_RECORD:'Enregistrement scellé',
+    COACHING_EMITTED:'Accompagnement proposé',LESSON_SERVED:'Leçon affichée'};
+  return (a||[]).map(x=>map[x]||x).join(' · ');
+}
+function severityRank(v){ return Math.min(4, Math.max(1, parseInt(v,10)||1)); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// Garde-fou : la page DOIT être servie par l'API (same-origin), pas ouverte en file://
+if (location.protocol === 'file:') {
+  toast("Ouvre la page via http://127.0.0.1:8000/demo.html — pas en double-cliquant le fichier.");
+}
+</script>
+</body>
+</html>

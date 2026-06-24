@@ -1,8 +1,8 @@
 # Palabrae — API
 
-Moteur d'intégrité procédurale. **La machine prévient, rappelle, propose — la décision reste à l'humain.**
+**L'exercice procédural aléatoire** — comme un exercice d'alerte au feu, mais pour les gestes de sécurité alimentaire. On ne remplace pas le logiciel HACCP qui *décrit* la procédure : on l'*éprouve*, par un contrôle tiré au sort, non punitif, qui forme l'équipe et laisse une trace prouvable. La machine prévient, rappelle, propose — la décision reste à l'humain.
 
-API REST (Symfony 7.1 + API Platform 4 + Doctrine ORM/PostgreSQL) construite **autour des fichiers métier existants** : noyau d'intégrité, gradient de gravité, mur RGPD coaching/disciplinaire, et planificateur de contrôles surprise *commit-reveal*.
+API REST (Symfony 7.1 + API Platform 4 + Doctrine ORM/PostgreSQL) : noyau d'intégrité (*commit-reveal* infalsifiable), gradient de gravité à escalade proportionnée, mur RGPD coaching/pilotage, et planificateur d'exercices autonome (« personne ne tient le bouton »).
 
 ## Architecture
 
