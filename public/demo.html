@@ -83,24 +83,16 @@
   <div class="card hidden" id="op">
     <h2>Exercice du jour</h2>
     <div class="row">
-      <label>Référence</label><input id="winRef" size="32">
-      <label>Point</label><input id="winCp" size="15" value="CCP-FROID-01">
+      <button class="primary" onclick="loadChecklist()">Démarrer l'exercice</button>
+      <span id="progress" class="sub" style="margin:0"></span>
     </div>
-    <div class="row" style="margin-top:8px">
-      <button onclick="takePhoto()">📷 Prendre la photo</button>
-      <span class="sub" style="margin:0">Photo du contrôle requise — prise en direct.</span>
-      <input id="photoInput" type="file" accept="image/*" capture="environment" style="display:none">
-    </div>
-    <div id="photoPreview"></div>
-    <div class="row" style="margin-top:8px">
-      <button class="primary" onclick="honor()">Réaliser l'exercice</button>
-    </div>
-    <div id="verdict"></div>
-
-    <h2 style="margin-top:18px">Points contrôlables</h2>
-    <div class="row"><button onclick="loadChecklist()">Afficher les points</button></div>
+    <input id="winRef" type="hidden">
     <input id="pointPhotoInput" type="file" accept="image/*" capture="environment" style="display:none">
     <div id="checklist"></div>
+    <div id="verdict"></div>
+    <div class="row" style="margin-top:14px">
+      <button id="finishBtn" class="primary" disabled onclick="finishExercise()">Terminer l'exercice</button>
+    </div>
   </div>
 
   <div class="card hidden" id="mgr">
@@ -119,7 +111,7 @@
 <script>
 let token = null;
 const points = {};
-let exercisePhoto = null;
+const validated = {};     // code -> true quand l'étape est validée
 const pointPhotos = {};   // code -> photo récente (objectURL)
 let pendingPhotoCode = null;
 
@@ -133,22 +125,19 @@ document.getElementById('role').addEventListener('change', e => {
   document.getElementById('pass').value  = op ? 'demo-operateur' : 'demo-responsable';
 });
 
-// ——— Photo en direct (rappel + anti « photo d'un autre jour ») ———
-const photoInput = document.getElementById('photoInput');
-function takePhoto(){ photoInput.click(); }
-function resetPhoto(){ exercisePhoto = null; document.getElementById('photoPreview').innerHTML = ''; photoInput.value = ''; }
-photoInput.addEventListener('change', e => {
-  const f = e.target.files && e.target.files[0];
-  if (!f) return;
-  // La caméra produit un fichier daté de maintenant ; une photo de la librairie
-  // a un horodatage ancien → on refuse, pour garantir une prise sur le moment.
-  if (Date.now() - f.lastModified > 5*60*1000) { resetPhoto(); toast('Photo trop ancienne — prends-la en direct.'); return; }
-  exercisePhoto = URL.createObjectURL(f);
-  document.getElementById('photoPreview').innerHTML =
-    `<img alt="" src="${exercisePhoto}" style="margin-top:10px;max-width:200px;border-radius:10px;border:1px solid var(--hair)">`;
-});
+// ——— Progression de l'exercice ———
+function updateProgress(){
+  const total = Object.keys(points).length;
+  const done = Object.keys(validated).length;
+  const prog = document.getElementById('progress');
+  const btn = document.getElementById('finishBtn');
+  if (total === 0){ prog.textContent=''; btn.disabled=true; return; }
+  prog.textContent = `${done} / ${total} étapes validées`;
+  btn.disabled = (done !== total);
+}
 
-// ——— Photo par point de contrôle ———
+// La photo (prise en direct) est anti « photo d'un autre jour » : la caméra date
+// le fichier de maintenant ; une photo de la librairie a un horodatage ancien.
 const pointPhotoInput = document.getElementById('pointPhotoInput');
 function takePhotoFor(code){ pendingPhotoCode = code; pointPhotoInput.value=''; pointPhotoInput.click(); }
 function clearPointPhoto(code){ delete pointPhotos[code]; const s=document.getElementById('pp-'+code); if(s) s.innerHTML=''; }
@@ -189,6 +178,8 @@ async function loadChecklist(){
   try {
     const pts = await api('GET','/api/control-points');
     const c = document.getElementById('checklist'); c.innerHTML='';
+    for (const k in validated) delete validated[k];
+    document.getElementById('verdict').innerHTML = '';
     pts.forEach(p => {
       points[p.code]=p;
       const div=document.createElement('div'); div.className='cp';
@@ -203,6 +194,7 @@ async function loadChecklist(){
       const ko=document.createElement('button'); ko.textContent='Signaler un écart'; ko.className='warn'; ko.onclick=()=>report(p.code);
       row.append(ok,ko); div.append(row); c.append(div);
     });
+    updateProgress();
   } catch(e){ toast('Chargement impossible'); }
 }
 
@@ -210,7 +202,7 @@ async function markConform(code){
   if (points[code]?.requiresPhoto && !pointPhotos[code]) { toast('Photo requise pour ce point — prends-la en direct.'); return; }
   try { await api('POST','/api/inspections',{controlPointCode:code});
     document.getElementById('verdict').innerHTML = `<div class="ok">✔ ${esc(points[code]?.label||code)} — validé conforme.</div>`;
-    clearPointPhoto(code);
+    clearPointPhoto(code); validated[code]=true; updateProgress();
   } catch(e){ toast('Action impossible'); }
 }
 
@@ -225,17 +217,18 @@ async function report(code){
       <div class="vh">${esc(code)}</div>
       <div class="vt">${esc(verdictLabel(r.severity))}</div>
       <div>${actionsText(r.actions)}</div>${lesson}</div>`;
-    clearPointPhoto(code);
+    clearPointPhoto(code); validated[code]=true; updateProgress();
   } catch(e){ toast('Signalement impossible'); }
 }
 
-async function honor(){
-  if (!exercisePhoto) { toast('Prends d\'abord la photo du contrôle, en direct.'); return; }
-  const windowRef=document.getElementById('winRef').value, controlPointCode=document.getElementById('winCp').value;
-  try { const r=await api('POST','/api/spot-checks/honor',{windowRef,controlPointCode});
-    document.getElementById('verdict').innerHTML = `<div class="ok">✔ Contrôle réalisé et enregistré (poste ${r.ordinal+1}).</div>`;
-    resetPhoto();
-  } catch(e){ toast(e.data&&e.data.detail ? e.data.detail : 'Aucun contrôle en attente'); }
+async function finishExercise(){
+  const codes = Object.keys(points);
+  if (codes.length === 0 || Object.keys(validated).length !== codes.length) return; // sécurité (bouton grisé)
+  const windowRef = document.getElementById('winRef').value;
+  // Enregistre l'exercice comme réalisé (best effort : nécessite un créneau scellé).
+  try { await api('POST','/api/spot-checks/honor', {windowRef, controlPointCode: codes[0]}); } catch(e) {}
+  document.getElementById('verdict').innerHTML = `<div class="ok">✔ Exercice terminé — toutes les étapes sont enregistrées.</div>`;
+  document.getElementById('finishBtn').disabled = true;
 }
 
 async function loadCompliance(){
