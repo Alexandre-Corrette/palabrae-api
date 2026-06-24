@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\DataFixtures;
 
+use App\Entity\ControlCriterion;
 use App\Entity\ControlPoint;
 use App\Entity\Investigation;
 use App\Entity\MicroLesson;
 use App\Entity\User;
+use App\Enum\Comparator;
+use App\Enum\CriterionType;
 use App\Enum\Severity;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -77,6 +80,7 @@ final class AppFixtures extends Fixture
                 "Nettoie et horodate ton passage.", false],
         ];
 
+        $cps = [];
         foreach ($points as [$code, $label, $severity, $why, $how, $requiresPhoto]) {
             $lesson = new MicroLesson($label, $why, $how);
             $manager->persist($lesson);
@@ -85,6 +89,24 @@ final class AppFixtures extends Fixture
             $cp->attachLesson($lesson);
             $cp->setRequiresPhoto($requiresPhoto);
             $manager->persist($cp);
+            $cps[$code] = $cp;
+        }
+
+        // ——— Critères de la fiche « Contrôle à réception » (fiche METRO N°5) ———
+        // Chaque case devient une règle métier : gravité propre, et seuil pour
+        // les mesures. L'écart prend la plus haute gravité des critères en défaut.
+        $reception = $cps['CCP-RECEP-02'];
+        $criteria = [
+            (new ControlCriterion($reception, 'temperature', 'Température du produit', CriterionType::MEASURE, Severity::ACUTE, 0))
+                ->withRule(Comparator::LESS_OR_EQUAL, 4.0, '°C'),
+            new ControlCriterion($reception, 'dlc', 'DLC / DLUO non dépassée', CriterionType::BOOLEAN, Severity::ACUTE, 1),
+            new ControlCriterion($reception, 'fraicheur', 'Fraîcheur (aspect, odeur)', CriterionType::BOOLEAN, Severity::SANITARY, 2),
+            new ControlCriterion($reception, 'emballage', "État de l'emballage et du conditionnement", CriterionType::BOOLEAN, Severity::SANITARY, 3),
+            new ControlCriterion($reception, 'etiquettes', 'Présence des étiquettes sanitaires', CriterionType::BOOLEAN, Severity::SANITARY, 4),
+            new ControlCriterion($reception, 'quantite', 'Quantité conforme au bon de livraison', CriterionType::BOOLEAN, Severity::COSMETIC, 5),
+        ];
+        foreach ($criteria as $c) {
+            $manager->persist($c);
         }
 
         $manager->flush();

@@ -7,7 +7,9 @@ namespace App\State;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProviderInterface;
 use App\ApiResource\ControlPointView;
+use App\ApiResource\CriterionView;
 use App\ApiResource\LessonView;
+use App\Entity\ControlCriterion;
 use App\Entity\ControlPoint;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -60,6 +62,17 @@ final class ControlPointCollectionProvider implements ProviderInterface
                     ),
                     procedureReference: $cp->getProcedure()->getReference(),
                     requiresPhoto: $cp->requiresPhoto(),
+                    criteria: array_map(
+                        static fn (ControlCriterion $c): CriterionView => new CriterionView(
+                            code: $c->getCode(),
+                            label: $c->getLabel(),
+                            type: $c->getType()->value,
+                            unit: $c->getUnit(),
+                            rule: $c->ruleLabel(),
+                            severityLabel: $c->getSeverity()->label(),
+                        ),
+                        $cp->getCriteria()->toArray(),
+                    ),
                 );
             },
             $points,

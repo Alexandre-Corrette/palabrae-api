@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\Severity;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 
@@ -52,17 +54,40 @@ class ControlPoint
     #[ORM\Column]
     private bool $requiresPhoto = false;
 
+    /**
+     * Critères composant ce point (les « cases » d'une fiche). Vide = point
+     * simple (conforme/écart d'un bloc).
+     *
+     * @var Collection<int, ControlCriterion>
+     */
+    #[ORM\OneToMany(targetEntity: ControlCriterion::class, mappedBy: 'controlPoint', cascade: ['persist'])]
+    #[ORM\OrderBy(['position' => 'ASC'])]
+    private Collection $criteria;
+
     public function __construct(Investigation $procedure, string $code, string $label, Severity $severity)
     {
         $this->procedure = $procedure;
         $this->code = $code;
         $this->label = $label;
         $this->severity = $severity;
+        $this->criteria = new ArrayCollection();
     }
 
     public function attachLesson(MicroLesson $lesson): void { $this->lesson = $lesson; }
 
     public function setRequiresPhoto(bool $requiresPhoto): void { $this->requiresPhoto = $requiresPhoto; }
+
+    public function addCriterion(ControlCriterion $criterion): void
+    {
+        if (!$this->criteria->contains($criterion)) {
+            $this->criteria->add($criterion);
+        }
+    }
+
+    /** @return Collection<int, ControlCriterion> */
+    public function getCriteria(): Collection { return $this->criteria; }
+
+    public function hasCriteria(): bool { return !$this->criteria->isEmpty(); }
 
     public function getId(): ?int { return $this->id; }
     public function getProcedure(): Investigation { return $this->procedure; }

@@ -46,6 +46,14 @@ class Deviation
     #[ORM\Column]
     private bool $resolved = false;
 
+    /**
+     * Gravité EFFECTIVE quand elle diffère de celle du point — ex. écart issu
+     * de l'évaluation de critères : on prend la plus haute gravité des critères
+     * en défaut. Null = on retombe sur la gravité nominale du point.
+     */
+    #[ORM\Column(enumType: Severity::class, nullable: true)]
+    private ?Severity $severityOverride = null;
+
     public function __construct(ControlPoint $controlPoint, ?string $operatorRef = null, ?string $note = null)
     {
         $this->controlPoint = $controlPoint;
@@ -54,9 +62,14 @@ class Deviation
         $this->detectedAt = new \DateTimeImmutable();
     }
 
+    public function overrideSeverity(Severity $severity): void
+    {
+        $this->severityOverride = $severity;
+    }
+
     public function severity(): Severity
     {
-        return $this->controlPoint->getSeverity();
+        return $this->severityOverride ?? $this->controlPoint->getSeverity();
     }
 
     public function resolve(): void { $this->resolved = true; }

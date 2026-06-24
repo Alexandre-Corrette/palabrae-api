@@ -39,6 +39,13 @@ final class ControlPointView
         public readonly string $procedureReference,
         /** Ce point exige une preuve photo (prise en direct) pour être clôturé. */
         public readonly bool $requiresPhoto,
+        /**
+         * Critères composant le point (les « cases » d'une fiche). Vide = point
+         * simple (conforme/écart d'un bloc).
+         *
+         * @var CriterionView[]
+         */
+        public readonly array $criteria,
     ) {
     }
 }
