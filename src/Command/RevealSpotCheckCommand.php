@@ -6,6 +6,8 @@ namespace App\Command;
 
 use App\Entity\SpotCheckPlan;
 use App\Service\SealedPlanner;
+use App\SpotCheck\ControlHoursResolver;
+use App\SpotCheck\DrillTimeDeriver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -35,6 +37,8 @@ final class RevealSpotCheckCommand extends Command
     public function __construct(
         private readonly SealedPlanner $planner,
         private readonly EntityManagerInterface $em,
+        private readonly ControlHoursResolver $hoursResolver,
+        private readonly DrillTimeDeriver $deriver,
     ) {
         parent::__construct();
     }
@@ -74,7 +78,23 @@ final class RevealSpotCheckCommand extends Command
             ['honorés' => (string) $stats['honored']],
             ['manqués (prouvables)' => (string) $stats['missed']],
         );
-        $io->note('La graine est désormais publique : n\'importe qui peut recalculer le commitment et vérifier que le plan était fixé d\'avance.');
+        // Horaires recalculés depuis la graine désormais publique : tous hors
+        // service (la plage du coup de feu est exclue côté planification).
+        $seedHex = $plan->getRevealedSeed();
+        $seed = $seedHex === null ? false : hex2bin($seedHex);
+        if ($seed !== false) {
+            $hours = $this->hoursResolver->forSite($plan->getSiteRef());
+            $day = \DateTimeImmutable::createFromInterface($plan->getSealedAt());
+            $times = $this->deriver->derive($seed, $plan->getCount(), $day, $hours);
+            $io->definitionList(
+                ['horaires de l\'exercice (hors service)' => implode(' · ', array_map(
+                    static fn (\DateTimeImmutable $t): string => $t->format('H:i'),
+                    $times,
+                ))],
+            );
+        }
+
+        $io->note('La graine est désormais publique : n\'importe qui peut recalculer le commitment et les horaires, et vérifier que le plan était fixé d\'avance, jamais pendant le service.');
 
         return Command::SUCCESS;
     }

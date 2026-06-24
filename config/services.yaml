@@ -1,4 +1,14 @@
 parameters:
+    # Plages horaires des exercices, PAR SITE. Les exercices ne tombent jamais
+    # dans les plages « forbidden » (le service / coup de feu). `_default` sert
+    # de repli pour les sites non listés.
+    palabrae.control_hours:
+        _default:
+            day: ['08:00', '22:00']
+            forbidden: ['12:00-14:00', '19:00-21:00']
+        SITE-LEOLAGRANGE:
+            day: ['07:30', '20:00']
+            forbidden: ['11:30-14:00']
 
 services:
     _defaults:
@@ -11,6 +21,12 @@ services:
             - '../src/DependencyInjection/'
             - '../src/Entity/'
             - '../src/Kernel.php'
+            - '../src/SpotCheck/ControlHours.php'
+
+    # Plages horaires par site (constructeur à argument tableau → binding explicite).
+    App\SpotCheck\ControlHoursResolver:
+        arguments:
+            $sites: '%palabrae.control_hours%'
 
     # ——— Câblage des abstractions d'intégrité ———
     # Ces alias rendent explicites les choix de sécurité. Pour durcir en prod,
